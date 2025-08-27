@@ -1259,4 +1259,14 @@ describe(`Parse Swagger Documentation from Json`, () => {
 
     expect(toBeParsed[1].fields?.[0]).toEqual(parsed[1]?.fields[0]);
   });
+
+  test("Guesses references and maxCardinality", () => {
+    const reviewResource = toBeParsed[1];
+    assert(!!reviewResource?.fields, "Expected 'fields' in second resource");
+    const bookField = reviewResource.fields.find((f) => f.name === "book");
+    assert(!!bookField, "Expected 'book' field in review resource");
+    expect(bookField.reference?.title).toBe("Book");
+    expect(bookField.embedded).toBeNull();
+    expect(bookField.maxCardinality).toBe(1);
+  });
 });

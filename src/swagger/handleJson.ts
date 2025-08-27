@@ -17,8 +17,7 @@ export default function handleJson(
   entrypointUrl: string,
 ): Resource[] {
   const paths = getResourcePaths(response.paths);
-
-  return paths.map((path) => {
+  const resources = paths.map((path) => {
     const splittedPath = removeTrailingSlash(path).split("/");
     const baseName = splittedPath[splittedPath.length - 2];
     if (!baseName) {
@@ -48,31 +47,41 @@ export default function handleJson(
 
     const requiredFields = response.definitions?.[title]?.required ?? [];
 
-    const fields = Object.entries(properties).map(
-      ([fieldName, property]) =>
-        new Field(fieldName, {
-          id: null,
-          range: null,
-          type: getType(
-            typeof property?.type === "string" ? property.type : "",
-            property?.["format"] ?? "",
-          ),
-          enum: property.enum
-            ? Object.fromEntries(
-                property.enum.map((enumValue: string | number) => [
-                  typeof enumValue === "string"
-                    ? inflection.humanize(enumValue)
-                    : enumValue,
-                  enumValue,
-                ]),
+    const fields = Object.entries(properties).map(([fieldName, property]) => {
+      const field = new Field(fieldName, {
+        id: null,
+        range: null,
+        type: getType(
+          typeof property?.type === "string" ? property.type : "",
+          property?.["format"] ?? "",
+        ),
+        arrayType:
+          property?.type === "array"
+            ? getType(
+                typeof (property.items as any)?.type === "string"
+                  ? (property.items as any).type
+                  : "string",
+                (property.items as any)?.format,
               )
-            : null,
-          reference: null,
-          embedded: null,
-          required: requiredFields.some((value) => value === fieldName),
-          description: property.description || "",
-        }),
-    );
+            : undefined,
+        enum: property.enum
+          ? Object.fromEntries(
+              property.enum.map((enumValue: string | number) => [
+                typeof enumValue === "string"
+                  ? inflection.humanize(enumValue)
+                  : enumValue,
+                enumValue,
+              ]),
+            )
+          : null,
+        reference: null,
+        embedded: null,
+        required: requiredFields.some((value) => value === fieldName),
+        description: property.description || "",
+      });
+
+      return field;
+    });
 
     return new Resource(name, url, {
       id: null,
@@ -83,4 +92,26 @@ export default function handleJson(
       writableFields: fields,
     });
   });
+
+  // Guess embeddeds and references from property names
+  for (const resource of resources) {
+    for (const field of resource.fields ?? []) {
+      const name = inflection.camelize(field.name).replace(/Ids?$/, "");
+
+      const guessedResource = resources.find(
+        (res) => res.title === inflection.classify(name),
+      );
+      if (!guessedResource) {
+        continue;
+      }
+      field.maxCardinality = field.type === "array" ? null : 1;
+      if (field.type === "object" || field.arrayType === "object") {
+        field.embedded = guessedResource;
+      } else {
+        field.reference = guessedResource;
+      }
+    }
+  }
+
+  return resources;
 }
