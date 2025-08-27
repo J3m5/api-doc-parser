@@ -27,6 +27,15 @@ const swaggerApiDefinition: OpenAPIV2.Document = {
           "text/html",
         ],
         summary: "Retrieves the collection of Book resources.",
+        parameters: [
+          {
+            name: "page",
+            in: "query",
+            required: false,
+            type: "integer",
+            description: "The collection page number",
+          },
+        ],
         responses: {
           "200": {
             description: "Book collection response",
@@ -1258,5 +1267,49 @@ describe(`Parse Swagger Documentation from Json`, () => {
     );
 
     expect(toBeParsed[1].fields?.[0]).toEqual(parsed[1]?.fields[0]);
+  });
+
+  test(`should create operations and parameters`, () => {
+    expect(toBeParsed[0].operations).toEqual([
+      {
+        name: "Retrieves a Book resource.",
+        type: "show",
+        method: "GET",
+        deprecated: false,
+      },
+      {
+        name: "Replaces the Book resource.",
+        type: "edit",
+        method: "PUT",
+        deprecated: false,
+      },
+      {
+        name: "Removes the Book resource.",
+        type: "delete",
+        method: "DELETE",
+        deprecated: false,
+      },
+      {
+        name: "Retrieves the collection of Book resources.",
+        type: "list",
+        method: "GET",
+        deprecated: false,
+      },
+      {
+        name: "Creates a Book resource.",
+        type: "create",
+        method: "POST",
+        deprecated: false,
+      },
+    ]);
+
+    expect(toBeParsed[0].parameters).toEqual([
+      expect.objectContaining({
+        variable: "page",
+        range: "integer",
+        required: false,
+        description: "The collection page number",
+      }),
+    ]);
   });
 });
